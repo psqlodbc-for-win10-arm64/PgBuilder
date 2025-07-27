@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "OpenSSLPrepare": {
+      "commandName": "Project",
+      "commandLineArgs": " openssl-prepare V:\\psqlodbc-for-win10-arm64\\openssl-arm64x-release-2 "
+    }
+  }
+}
