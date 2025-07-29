@@ -2,7 +2,12 @@
 
 ## OpenSSL
 
-Run `call "C:\Program Files\Microsoft Visual Studio\2022\Professional\VC\Auxiliary\Build\vcvarsamd64_arm64.bat"`
+Run
+
+```bat
+call "C:\Program Files\Microsoft Visual Studio\2022\Professional\VC\Auxiliary\Build\vcvarsamd64_arm64.bat"
+PATH %PATH%;C:\Strawberry\perl\bin
+```
 
 ```bat
 PgBuilder.exe ^
