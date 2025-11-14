@@ -88,6 +88,8 @@ namespace PgBuilder
 
         private static int DoPostgreSQLPrepare(PostgreSQLPrepareOpt o)
         {
+            Directory.CreateDirectory(o.BuildDir);
+
             {
                 var writer = new StringWriter() { NewLine = "\n", };
                 writer.WriteLine("[binaries]");
