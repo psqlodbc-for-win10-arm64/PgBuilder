@@ -107,7 +107,7 @@ namespace PgBuilder
                 writer.WriteLine("endian = 'little'");
 
                 File.WriteAllText(
-                    Path.Combine(o.SourceDir, "arm64x.txt"),
+                    Path.Combine(o.BuildDir, "arm64x.txt"),
                     writer.ToString(),
                     new UTF8Encoding(false)
                 );
@@ -119,7 +119,7 @@ namespace PgBuilder
                 string.Join(
                     " ",
                     "setup",
-                    "--cross-file arm64x.txt",
+                    "--cross-file \"" + Path.Combine(o.BuildDir, "arm64x.txt") + "\"",
                     "--prefix \"" + o.Prefix + "\"",
                     "--backend ninja",
                     "--buildtype release",
