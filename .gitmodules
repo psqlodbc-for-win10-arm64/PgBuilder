@@ -1,0 +1,4 @@
+[submodule "BuildHelper"]
+	path = BuildHelper
+	url = https://github.com/mariadb-connector-odbc-for-win10-arm64/BuildHelper.git
+	branch = master
