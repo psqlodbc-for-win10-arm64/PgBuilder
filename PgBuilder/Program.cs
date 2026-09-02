@@ -1,7 +1,9 @@
 ﻿using CommandLine;
 using NLog;
 using System.Diagnostics;
+using System.IO.Compression;
 using System.Text;
+using System.Text.RegularExpressions;
 
 // "H:\Program Files\Microsoft Visual Studio\2022\Professional\VC\Auxiliary\Build\vcvarsamd64_arm64.bat"
 
@@ -45,6 +47,19 @@ namespace PgBuilder
 
             [Option("silent", HelpText = "Suppress output messages during the build process.")]
             public bool Silent { get; set; }
+        }
+
+        [Verb("openssl-arm64x-pack", HelpText = "Pack binaries to a zip.")]
+        private class OpenSSLPackOpt
+        {
+            [Value(0, Required = true, HelpText = "Path to the destination directory for the build output.")]
+            public string DestDir { get; set; } = "";
+
+            [Option("version", Required = true, HelpText = "A full version number to be released like `3.6.4`.")]
+            public string Version { get; set; } = "";
+
+            [Option("source-dir", Required = false, HelpText = "Point to a source code directory.")]
+            public string? SourceDir { get; set; }
         }
 
         [Verb("postgresql-arm64x-prepare", HelpText = "Prepare PostgreSQL for building.")]
@@ -146,10 +161,11 @@ namespace PgBuilder
         {
             try
             {
-                return Parser.Default.ParseArguments<OpenSSLPrepareOpt, OpenSSLBuildOpt, PostgreSQLPrepareOpt, PsqlodbcBatchBuildOpt>(args)
-                    .MapResult<OpenSSLPrepareOpt, OpenSSLBuildOpt, PostgreSQLPrepareOpt, PsqlodbcBatchBuildOpt, int>(
+                return Parser.Default.ParseArguments<OpenSSLPrepareOpt, OpenSSLBuildOpt, OpenSSLPackOpt, PostgreSQLPrepareOpt, PsqlodbcBatchBuildOpt>(args)
+                    .MapResult<OpenSSLPrepareOpt, OpenSSLBuildOpt, OpenSSLPackOpt, PostgreSQLPrepareOpt, PsqlodbcBatchBuildOpt, int>(
                         DoOpenSSLPrepare,
                         DoOpenSSLBuild,
+                        DoOpenSSLPackOpt,
                         DoPostgreSQLPrepare,
                         DoPsqlodbcBatchBuild,
                         ex => 1
@@ -622,6 +638,87 @@ namespace PgBuilder
             }
 #endif
 
+
+            return 0;
+        }
+
+        private static int DoOpenSSLPackOpt(OpenSSLPackOpt o)
+        {
+            var logger = LogManager.GetLogger("OpenSSLPack");
+
+            var ver = o.Version;
+
+            var hash = "xxxxxxxx";
+
+            if (!string.IsNullOrEmpty(o.SourceDir))
+            {
+                try
+                {
+                    var psi = new ProcessStartInfo("git.exe", " log -n1 --decorate=full ")
+                    {
+                        WorkingDirectory = o.SourceDir,
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                    };
+                    var p = Process.Start(psi)!;
+                    var stdOut = p.StandardOutput.ReadToEnd();
+                    p.WaitForExit();
+                    {
+                        var match = Regex.Match(stdOut, "^commit\\s+(?<hash>[0-9a-f]{8,})\\s+");
+                        if (match.Success)
+                        {
+                            hash = match.Groups["hash"].Value.Substring(0, 8);
+                            logger.Debug("Hash is identified as: {0}", hash);
+                        }
+                    }
+
+                    if (ver == "auto")
+                    {
+                        var match = Regex.Match(stdOut, "openssl-(?<ver>\\d+\\.\\d+\\.\\d+)");
+                        if (match.Success)
+                        {
+                            ver = match.Groups["ver"].Value;
+                            logger.Debug("Version is identified as: {0}", ver);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.Warn(ex, "Failed to obtain a git hash!");
+                }
+            }
+
+            var dashedVer = ver.Replace(".", "_");
+
+            // Win64Arm64XOpenSSL-3_6_4-SNAPSHOT.zip
+            var zipFile = Path.Combine(
+                o.DestDir,
+                $"Win64Arm64XOpenSSL-{dashedVer}-SNAPSHOT.zip"
+            );
+
+            logger.Info("ZipFile: {0}", zipFile);
+
+            if (!File.Exists(zipFile))
+            {
+                ZipFile.CreateFromDirectory(
+                    sourceDirectoryName: Path.Combine(
+                        o.DestDir,
+                        "Program Files",
+                        "OpenSSL"
+                    ),
+                    destinationArchiveFileName: zipFile,
+                    compressionLevel: CompressionLevel.SmallestSize,
+                    includeBaseDirectory: false
+                );
+                logger.Info("ZipFile created.");
+            }
+            else
+            {
+                logger.Info("ZipFile already exists!");
+            }
+
+            logger.Info($"  Branch_openssl-{ver}-{hash}");
+            logger.Info($"  v{ver}-SNAPSHOT (Arm64X)");
 
             return 0;
         }
